@@ -1,0 +1,10 @@
+#!/bin/dash
+
+# check if there is a .shrug directory
+if [ ! -e ".shrug" ]; then
+    echo "shrug-log: error: no .shrug directory containing shrug repository exists" >&2
+    exit 1
+fi
+
+cat .shrug/COMMIT_HISTORY
+exit 0

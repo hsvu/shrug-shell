@@ -1,0 +1,51 @@
+#!/bin/dash
+
+# check for appropriate args
+if [ ! $# = 1 ]; then
+    echo "usage: shrug-show <commit>:<filename>" >&2
+    exit 1
+fi
+
+# check if there is a .shrug directory
+if [ ! -e ".shrug" ]; then
+    echo "shrug-show: error: no .shrug directory containing shrug repository exists" >&2
+    exit 1
+fi
+
+commit_filename=$1
+
+# finding the commit number
+commit_number=`echo $commit_filename | cut -d ':' -f1`
+empty_commit_num=0
+if [ -z "$commit_number" ]; then
+    empty_commit_num=1
+fi
+
+# finding the filename
+filename=`echo $commit_filename | cut -d ':' -f2`
+
+# entering commit folder and looking for file
+# checking if commit is valid
+cd .shrug
+if [ ! -e "commit_$commit_number" ] && [ $empty_commit_num = 0 ]; then
+    echo "shrug-show: error: unknown commit '$commit_number'" >&2
+    exit 1
+elif [ $empty_commit_num = 1 ]; then
+    cd index
+else 
+    cd commit_$commit_number
+fi
+
+# checking to see if file is valid
+if [ ! -e "$filename" ] && [ $empty_commit_num = 0 ]; then
+    echo "shrug-show: error: '$filename' not found in commit $commit_number" >&2
+    exit 1
+elif [ ! -e "$filename" ] && [ $empty_commit_num = 1 ]; then
+    echo "shrug-show: error: '$filename' not found in index" >&2
+    exit 1
+fi
+
+cat $filename
+cd ..
+cd ..
+exit 0

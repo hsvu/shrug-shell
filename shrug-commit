@@ -1,0 +1,104 @@
+#!/bin/dash
+
+# check for tags and appropriate args
+commit_a=0
+if [ $1 = "-a" ] && [ $2 = "-m" ] && [ $# -ge 3 ]; then
+    commit_a=1
+elif [ ! $1 = "-m" ] || [ $# -lt 2 ]; then
+    echo "usage: shrug-commit [-a] -m commit-message" >&2
+    exit 1
+fi
+
+# check if there is a .shrug directory
+if [ ! -e ".shrug" ]; then
+    echo "shrug-commit: error: no .shrug directory containing shrug repository exists" >&2
+    exit 1
+fi
+
+# if the -a option was used
+commit_message=''
+
+if [ $commit_a = 1 ]; then
+    # adding all relevant files to index
+    cd .shrug/index
+
+    #creating a temp file to record current index files
+    touch temp
+    for file in `ls`
+    do    
+        if [ ! $file = "temp" ]; then
+            echo "$file" >> temp
+        fi
+    done
+
+    # moving temp file to root directory
+    mv temp ../..
+
+    # going back to root directory
+    cd ../..
+
+    # for each line in temp, add to index
+    for file in `cat temp`
+    do
+        cp $file .shrug/index
+    done
+
+    # delete temp file
+    rm temp
+
+    # grabbing commit message
+    shift
+    shift
+    commit_message=$@
+
+else
+    # grabbing commit message
+    shift
+    commit_message=$@
+fi
+
+# finding next commit number and creating directory
+cd .shrug
+i=0
+while true
+do
+    # look for the next number which does not have a directory
+    if [ ! -e "commit_$i" ]; then
+        mkdir "commit_$i"
+        break
+    fi
+    i=$(( i+1 ))
+done
+
+# copy .index contents over to the most recent commit directory
+cd index
+for file in `ls`
+do
+    cp $file "../commit_$i"
+done
+cd ..
+
+# add commit msg to most recent commit directory
+cd commit_$i
+touch COMMIT_MSG
+echo "$commit_message" > COMMIT_MSG
+cd ..
+
+# checking if new commit directory is different from the previous, excluding commit msg
+curr_commit=$i
+prev_commit=$((i-1))
+if [ ! $curr_commit = 0 ]; then 
+    same_dir=`diff --exclude=COMMIT_MSG -qr commit_$curr_commit commit_$prev_commit`
+    if [ -z "$same_dir" ]; then
+        echo "nothing to commit" >&2
+        rm -rf commit_$curr_commit
+        exit 1
+    fi
+fi
+
+# appending commit msg to beginng of commit history
+echo "$i $commit_message" | cat - COMMIT_HISTORY > temp && mv temp COMMIT_HISTORY
+cd ..
+
+echo "Committed as commit $i"
+exit 0

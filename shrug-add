@@ -1,0 +1,37 @@
+#!/bin/dash
+
+# check for appropriate args
+if [ $# -le 0 ]; then
+    echo "usage: shrug-add <filenames>" >&2
+    exit 1
+fi
+
+# check if there is a .shrug directory
+if [ ! -e ".shrug" ]; then
+    echo "shrug-add: error: no .shrug directory containing shrug repository exists" >&2
+    exit 1
+fi
+
+for file in "$@"
+do
+    # check if file is in the index
+    if [ -f ".shrug/index/$file" ]; then
+
+        # check if file exists in directory
+        if [ ! -f "$file" ]; then
+            rm .shrug/index/$file
+            exit 0
+        fi
+    fi    
+
+    # check if file exists (and ordinary)
+    if [ ! -f $file ]; then
+        echo "shrug-add: error: can not open '$file'" >&2
+        exit 1
+    fi
+
+    # add to .index directory
+    cp $file ".shrug/index"
+
+done
+exit 0

@@ -1,0 +1,81 @@
+#!/bin/dash
+
+# check for appropriate args
+rm_force=0
+rm_cache=0
+if [ $1 = "--force" ] && [ $2 = "--cached" ] && [ $# -ge 3 ]; then
+    rm_force=1
+    rm_cache=1
+    shift
+    shift
+elif [ $1 = "--force" ] && [ ! $2 = "--cached" ] && [ $# -ge 2 ]; then
+    rm_force=1
+    shift
+elif [ $1 = "--cached" ] && [ $# -ge 2 ]; then
+    rm_cache=1
+    shift
+elif [ $# -lt 1 ]; then
+    echo "usage: shrug-rm [--force] [--cached] <filenames>" >&2
+    exit 1
+fi
+
+# check if there is a .shrug directory
+if [ ! -e ".shrug" ]; then
+    echo "shrug-rm: error: no .shrug directory containing shrug repository exists" >&2
+    exit 1
+fi
+
+# removing file from index and directory
+for files in "$@"
+do
+    # checking if file exists in index
+    if [ ! -f ".shrug/index/$files" ]; then
+        echo "shrug-rm: error: '$files' is not in the shrug repository" >&2
+        exit 1
+    fi
+
+    prev_commit=`head -n 1 .shrug/COMMIT_HISTORY | cut -d ' ' -f1`
+
+    # checking if user has changes staged in index, where the working file is the same as index
+    # i.e. checking prevous commit vs index
+    # AND
+    # checking if index is different to working file and repo
+    # i.e. checking index vs. previous commit and current directory
+    diff_index_currdir='INDEX VS CURR DIR'
+    diff_index_prevcommit='INDEX VS PREVIOUS COMMIT'
+    if [ -f ".shrug/commit_$prev_commit/$files" ] && [ -f ".shrug/index/$files" ]; then
+        diff_index_prevcommit=`diff -qr .shrug/commit_$prev_commit/$files .shrug/index/$files`
+    fi
+
+    if [ -f ".shrug/index/$files" ] && [ -f "$files" ]; then
+        diff_index_currdir=`diff -qr $files .shrug/index/$files`
+    fi
+
+    if [ ! -z "$diff_index_prevcommit" ] && [ -z "$diff_index_currdir" ] && [ ! $rm_force = 1 ] && [ ! $rm_cache = 1 ]; then
+        echo "shrug-rm: error: '$files' has changes staged in the index" >&2
+        exit 1
+    elif [ ! -z "$diff_index_currdir" ] && [ ! -z "$diff_index_prevcommit" ] && [ ! $rm_force = 1 ]; then
+        echo "shrug-rm: error: '$files' in index is different to both working file and repository" >&2
+        exit 1
+    fi
+
+    # checking if repo is different to working file
+    # i.e. checking previous commit vs current directory
+    diff_prevcommit_currdir='PREVIOUS COMMIT VS CURR DIR'
+    if [ -f ".shrug/commit_$prev_commit/$files" ] && [ -f "$files" ]; then
+        diff_prevcommit_currdir=`diff -qr .shrug/commit_$prev_commit/$files $files`
+    fi
+
+    if [ ! -z "$diff_prevcommit_currdir" ] && [ ! $rm_force = 1 ] && [ ! $rm_cache = 1 ]; then
+        echo "shrug-rm: error: '$files' in repository is different to working file" >&2
+        exit 1
+    fi
+
+    # remove files
+    if [ ! $rm_cache = 1 ]; then
+        rm $files
+    fi
+    rm .shrug/index/$files
+
+done
+exit 0
